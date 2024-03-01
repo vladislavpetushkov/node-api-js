@@ -99,42 +99,48 @@ export async function fetchAssetsBalance(base: string, address: string, options:
     const detailsIds = Object.keys(assetsWithoutIssueTransaction);
 
     if (detailsIds.length) {
-        const assetsDetailsResponse = await fetchAssetsDetails(base, detailsIds, options);
+        const limit = 100;
+        let subarray = [];
+        for (let i = 0; i < Math.ceil(detailsIds.length / limit); i++) {
+            subarray[i] = detailsIds.slice((i * limit), (i * limit) + limit);
+        }
+        const res = await Promise.all(
+            subarray.map(async (ids) =>
+                (await fetchAssetsDetails(base, ids, options)))
+        );
 
-        assetsDetailsResponse.forEach((assetDetails) => {
-            if ('error' in assetDetails) {
-                return;
-            }
-
-            const assetIndex = assetsWithoutIssueTransaction[assetDetails.assetId];
-            const assetBalance = balancesResponse.balances[assetIndex];
-
-            if (!assetBalance) {
-                return;
-            }
-
-            assetBalance.issueTransaction = {
-                id: assetDetails.originTransactionId,
-                name: assetDetails.name,
-                decimals: assetDetails.decimals,
-                description: assetDetails.description,
-                quantity: assetDetails.quantity,
-                reissuable: assetDetails.reissuable,
-                sender: assetDetails.issuer,
-                senderPublicKey: assetDetails.issuerPublicKey,
-                timestamp: assetDetails.issueTimestamp,
-                height: assetDetails.issueHeight,
-                script: assetDetails.scripted ? '-' : null,
-                proofs: [],
-                fee: 10 ** 8,
-                feeAssetId: null,
-                version: 3,
-                type: TRANSACTION_TYPE.ISSUE,
-                chainId: 0
-            };
+        res.forEach((assetsDetailsResponse) => {
+            assetsDetailsResponse.forEach((assetDetails) => {
+                if ('error' in assetDetails) {
+                    return;
+                }
+                const assetIndex = assetsWithoutIssueTransaction[assetDetails.assetId];
+                const assetBalance = balancesResponse.balances[assetIndex];
+                if (!assetBalance) {
+                    return;
+                }
+                assetBalance.issueTransaction = {
+                    id: assetDetails.originTransactionId,
+                    name: assetDetails.name,
+                    decimals: assetDetails.decimals,
+                    description: assetDetails.description,
+                    quantity: assetDetails.quantity,
+                    reissuable: assetDetails.reissuable,
+                    sender: assetDetails.issuer,
+                    senderPublicKey: assetDetails.issuerPublicKey,
+                    timestamp: assetDetails.issueTimestamp,
+                    height: assetDetails.issueHeight,
+                    script: assetDetails.scripted ? '-' : null,
+                    proofs: [],
+                    fee: 10 ** 8,
+                    feeAssetId: null,
+                    version: 3,
+                    type: TRANSACTION_TYPE.ISSUE,
+                    chainId: 0
+                };
+            })
         });
     }
-
     return balancesResponse;
 }
 
